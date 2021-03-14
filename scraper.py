@@ -14,6 +14,9 @@ class Article:
         self.date = str
         self.title = str
         self.link = str
+        self.preview_text = str
+        self.hubs = []
+        self.text = str
 
     def get_HTML_content(self):
         html = requests.get(self.url)
