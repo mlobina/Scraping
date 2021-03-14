@@ -1,9 +1,10 @@
 from pprint import pprint
-import requests
+
 from bs4 import BeautifulSoup
+import requests
 
 URL = "https://habr.com/ru/all/"
-KEYWORDS = ['дизайн', 'фото', 'web', 'python']
+KEYWORDS = ['дизайн', 'фото', 'web', 'python', 'аудиосоцсети', 'здоровье', 'Американские']
 
 
 class Article:
@@ -14,39 +15,42 @@ class Article:
         self.title = str
         self.link = str
 
-
     def get_HTML_content(self):
-        response = requests.get(self.url)
-        if response.status_code != 200:
-            raise Exception('bad response')
-        HTML_content = response.text
+        html = requests.get(self.url)
+        HTML_content = BeautifulSoup(html.text, features="html.parser")
         return HTML_content
 
     def get_articles(self, HTML_content):
-        bsObj = BeautifulSoup(HTML_content, features='html.parser')
-        articles = bsObj.find_all('article', class_='post post_preview')
+        articles = HTML_content.find_all('article', class_='post post_preview')
         return articles
 
-    def select_article_by_kw_in_hubs(self, articles):
+    def select_article_by_kw(self, articles, kw=KEYWORDS):
+        tags = list(map(str.lower, KEYWORDS))
+
         for article in articles:
-            articles_hubs = [hub.text.strip().lower() for hub in article.find_all('a', class_="inline-list__item-link hub-link")]
-            for hub in articles_hubs:
-                if any(kw in hub for kw in KEYWORDS):
-                    title_el = article.find('a', class_="post__title_link")
-                    self.title = title_el.text.strip()
-                    self.link = title_el['href']
-                    date_el = article.find('span', class_="post__time")
-                    self.date = date_el.text.strip()
-                    print(f'<{self.date}> - <{self.title}> - <{self.link}> ({hub})')
 
+            date_el = article.find('span', class_='post__time')
+            self.date = date_el.text.strip()
+            title_el = article.find('a', class_='post__title_link')
+            self.title = title_el.text.strip()
+            self.link = title_el['href']
+            self.hubs = [hub.text.strip().lower() for hub in
+                         article.find_all('a', class_="inline-list__item-link hub-link")]
+            preview_text_el = article.find('div', class_='post__text')
+            self.preview_text = preview_text_el.text.strip().lower().split()
+            article_HTML = requests.get(self.link)
+            article_content = BeautifulSoup(article_HTML.text, features="html.parser")
+            article_text_el = article_content.find(class_='post__text')
+            self.text = article_text_el.text
 
+            if set(tags) & set(map(str.lower, self.title.split())) or set(tags) & set(self.hubs) or set(tags) & set(
+                    self.preview_text) or set(tags) & set(map(str.lower, self.text.split())):
+                print(f'{self.date} - {self.title} - {self.link}')
 
-    def main(self):
-        print(self.select_article_by_kw_in_hubs(self.get_articles(self.get_HTML_content())))
 
 if __name__ == '__main__':
     art_1 = Article()
-    art_1.select_article_by_kw_in_hubs(art_1.get_articles(art_1.get_HTML_content()))
+    art_1.select_article_by_kw(art_1.get_articles(art_1.get_HTML_content()))
 
 
 
